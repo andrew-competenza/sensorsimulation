@@ -1,0 +1,18 @@
+@SensorStatsSimulator.API_HostAddress = http://localhost:5103
+
+###
+#  Get all sensor data currently in memory
+GET {{SensorStatsSimulator.API_HostAddress}}/api/sensors/snapshot
+Accept: application/json
+
+###
+#  Send a new sensor reading (POST)
+POST {{SensorStatsSimulator.API_HostAddress}}/api/sensors
+Content-Type: application/json
+Accept: application/json
+
+{
+  "sensorId": "sensor-0001",
+  "timestamp": "2025-10-09T12:34:56Z",
+  "value": 37.5
+}

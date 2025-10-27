@@ -1,0 +1,73 @@
+{
+  "hash": "58d08302",
+  "configHash": "d6fd9df7",
+  "lockfileHash": "5473d60a",
+  "browserHash": "756becc4",
+  "optimized": {
+    "@angular/common/http": {
+      "src": "../../../../../../node_modules/@angular/common/fesm2022/http.mjs",
+      "file": "@angular_common_http.js",
+      "fileHash": "e7901c43",
+      "needsInterop": false
+    },
+    "@angular/core": {
+      "src": "../../../../../../node_modules/@angular/core/fesm2022/core.mjs",
+      "file": "@angular_core.js",
+      "fileHash": "4abb9948",
+      "needsInterop": false
+    },
+    "@angular/platform-browser": {
+      "src": "../../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
+      "file": "@angular_platform-browser.js",
+      "fileHash": "fe7c32b3",
+      "needsInterop": false
+    },
+    "@microsoft/signalr": {
+      "src": "../../../../../../node_modules/@microsoft/signalr/dist/esm/index.js",
+      "file": "@microsoft_signalr.js",
+      "fileHash": "b1f90ba5",
+      "needsInterop": false
+    },
+    "chart.js": {
+      "src": "../../../../../../node_modules/chart.js/dist/chart.js",
+      "file": "chart__js.js",
+      "fileHash": "85d9426d",
+      "needsInterop": false
+    },
+    "chartjs-adapter-date-fns": {
+      "src": "../../../../../../node_modules/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.esm.js",
+      "file": "chartjs-adapter-date-fns.js",
+      "fileHash": "4dbb7285",
+      "needsInterop": false
+    },
+    "rxjs": {
+      "src": "../../../../../../node_modules/rxjs/dist/esm5/index.js",
+      "file": "rxjs.js",
+      "fileHash": "6d51bf31",
+      "needsInterop": false
+    },
+    "zone.js": {
+      "src": "../../../../../../node_modules/zone.js/fesm2015/zone.js",
+      "file": "zone__js.js",
+      "fileHash": "172cf9d0",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-YEAEPH64": {
+      "file": "chunk-YEAEPH64.js"
+    },
+    "chunk-5VU3RDKJ": {
+      "file": "chunk-5VU3RDKJ.js"
+    },
+    "chunk-RSS3ODKE": {
+      "file": "chunk-RSS3ODKE.js"
+    },
+    "chunk-YEJGN64Y": {
+      "file": "chunk-YEJGN64Y.js"
+    },
+    "chunk-J25FJFZE": {
+      "file": "chunk-J25FJFZE.js"
+    }
+  }
+}
