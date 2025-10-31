@@ -560,7 +560,7 @@ var Color = class _Color {
   }
 };
 
-// node_modules/chart.js/dist/chunks/helpers.dataset.js
+// node_modules/chart.js/dist/chunks/helpers.segment.js
 function noop() {
 }
 var uid = /* @__PURE__ */ (() => {
@@ -568,7 +568,7 @@ var uid = /* @__PURE__ */ (() => {
   return () => id++;
 })();
 function isNullOrUndef(value) {
-  return value === null || value === void 0;
+  return value === null || typeof value === "undefined";
 }
 function isArray(value) {
   if (Array.isArray && Array.isArray(value)) {
@@ -803,11 +803,8 @@ function _factorize(value) {
   result.sort((a, b) => a - b).pop();
   return result;
 }
-function isNonPrimitive(n) {
-  return typeof n === "symbol" || typeof n === "object" && n !== null && !(Symbol.toPrimitive in n || "toString" in n || "valueOf" in n);
-}
 function isNumber(n) {
-  return !isNonPrimitive(n) && !isNaN(parseFloat(n)) && isFinite(n);
+  return !isNaN(parseFloat(n)) && isFinite(n);
 }
 function almostWhole(x, epsilon) {
   const rounded = Math.round(x);
@@ -1025,35 +1022,24 @@ function _getStartAndCountOfVisiblePoints(meta, points, animationsDisabled) {
   let start = 0;
   let count = pointCount;
   if (meta._sorted) {
-    const { iScale, vScale, _parsed } = meta;
-    const spanGaps = meta.dataset ? meta.dataset.options ? meta.dataset.options.spanGaps : null : null;
+    const { iScale, _parsed } = meta;
     const axis = iScale.axis;
     const { min, max, minDefined, maxDefined } = iScale.getUserBounds();
     if (minDefined) {
-      start = Math.min(
+      start = _limitValue(Math.min(
         // @ts-expect-error Need to type _parsed
         _lookupByKey(_parsed, axis, min).lo,
         // @ts-expect-error Need to fix types on _lookupByKey
         animationsDisabled ? pointCount : _lookupByKey(points, axis, iScale.getPixelForValue(min)).lo
-      );
-      if (spanGaps) {
-        const distanceToDefinedLo = _parsed.slice(0, start + 1).reverse().findIndex((point) => !isNullOrUndef(point[vScale.axis]));
-        start -= Math.max(0, distanceToDefinedLo);
-      }
-      start = _limitValue(start, 0, pointCount - 1);
+      ), 0, pointCount - 1);
     }
     if (maxDefined) {
-      let end = Math.max(
+      count = _limitValue(Math.max(
         // @ts-expect-error Need to type _parsed
         _lookupByKey(_parsed, iScale.axis, max, true).hi + 1,
         // @ts-expect-error Need to fix types on _lookupByKey
         animationsDisabled ? 0 : _lookupByKey(points, axis, iScale.getPixelForValue(max), true).hi + 1
-      );
-      if (spanGaps) {
-        const distanceToDefinedHi = _parsed.slice(end - 1).findIndex((point) => !isNullOrUndef(point[vScale.axis]));
-        end += Math.max(0, distanceToDefinedHi);
-      }
-      count = _limitValue(end, start, pointCount) - start;
+      ), start, pointCount) - start;
     } else {
       count = pointCount - start;
     }
@@ -1322,7 +1308,6 @@ function applyScaleDefaults(defaults2) {
     reverse: false,
     beginAtZero: false,
     bounds: "ticks",
-    clip: true,
     grace: 0,
     grid: {
       display: true,
@@ -1567,9 +1552,6 @@ function _alignPixel(chart, pixel, width) {
   return Math.round((pixel - halfWidth) * devicePixelRatio) / devicePixelRatio + halfWidth;
 }
 function clearCanvas(canvas, ctx) {
-  if (!ctx && !canvas) {
-    return;
-  }
   ctx = ctx || canvas.getContext("2d");
   ctx.save();
   ctx.resetTransform();
@@ -1807,7 +1789,7 @@ function renderText(ctx, text, x, y, font, opts = {}) {
 }
 function addRoundedRectPath(ctx, rect) {
   const { x, y, w, h, radius } = rect;
-  ctx.arc(x + radius.topLeft, y + radius.topLeft, radius.topLeft, 1.5 * PI, PI, true);
+  ctx.arc(x + radius.topLeft, y + radius.topLeft, radius.topLeft, -HALF_PI, PI, true);
   ctx.lineTo(x, y + h - radius.bottomLeft);
   ctx.arc(x + radius.bottomLeft, y + h - radius.bottomLeft, radius.bottomLeft, PI, HALF_PI, true);
   ctx.lineTo(x + w - radius.bottomRight, y + h);
@@ -2076,7 +2058,7 @@ function _descriptors(proxy, defaults2 = {
 var readKey = (prefix, name) => prefix ? prefix + _capitalize(name) : name;
 var needsSubResolver = (prop, value) => isObject(value) && prop !== "adapters" && (Object.getPrototypeOf(value) === null || value.constructor === Object);
 function _cached(target, prop, resolve2) {
-  if (Object.prototype.hasOwnProperty.call(target, prop) || prop === "constructor") {
+  if (Object.prototype.hasOwnProperty.call(target, prop)) {
     return target[prop];
   }
   const value = resolve2();
@@ -2471,7 +2453,7 @@ function getRelativePosition(event, chart) {
 function getContainerSize(canvas, width, height) {
   let maxWidth, maxHeight;
   if (width === void 0 || height === void 0) {
-    const container = canvas && _getParentNode(canvas);
+    const container = _getParentNode(canvas);
     if (!container) {
       width = canvas.clientWidth;
       height = canvas.clientHeight;
@@ -2553,10 +2535,8 @@ var supportsEventListenerOptions = (function() {
         return false;
       }
     };
-    if (_isDomSupported()) {
-      window.addEventListener("test", null, options);
-      window.removeEventListener("test", null, options);
-    }
+    window.addEventListener("test", null, options);
+    window.removeEventListener("test", null, options);
   } catch (e) {
   }
   return passiveSupported;
@@ -2943,34 +2923,6 @@ function styleChanged(style, prevStyle) {
     return cache.indexOf(value);
   };
   return JSON.stringify(style, replacer) !== JSON.stringify(prevStyle, replacer);
-}
-function getSizeForArea(scale, chartArea, field) {
-  return scale.options.clip ? scale[field] : chartArea[field];
-}
-function getDatasetArea(meta, chartArea) {
-  const { xScale, yScale } = meta;
-  if (xScale && yScale) {
-    return {
-      left: getSizeForArea(xScale, chartArea, "left"),
-      right: getSizeForArea(xScale, chartArea, "right"),
-      top: getSizeForArea(yScale, chartArea, "top"),
-      bottom: getSizeForArea(yScale, chartArea, "bottom")
-    };
-  }
-  return chartArea;
-}
-function getDatasetClipArea(chart, meta) {
-  const clip = meta._clip;
-  if (clip.disabled) {
-    return false;
-  }
-  const area = getDatasetArea(meta, chart.chartArea);
-  return {
-    left: clip.left === false ? 0 : area.left - (clip.left === true ? 0 : clip.left),
-    right: clip.right === false ? chart.width : area.right + (clip.right === true ? 0 : clip.right),
-    top: clip.top === false ? 0 : area.top - (clip.top === true ? 0 : clip.top),
-    bottom: clip.bottom === false ? chart.height : area.bottom + (clip.bottom === true ? 0 : clip.bottom)
-  };
 }
 
 // node_modules/chart.js/dist/chart.js
@@ -3401,11 +3353,9 @@ function applyStack(stack, value, dsIndex, options = {}) {
   if (value === null) {
     return;
   }
-  let found = false;
   for (i = 0, ilen = keys.length; i < ilen; ++i) {
     datasetIndex = +keys[i];
     if (datasetIndex === dsIndex) {
-      found = true;
       if (options.all) {
         continue;
       }
@@ -3416,23 +3366,17 @@ function applyStack(stack, value, dsIndex, options = {}) {
       value += otherValue;
     }
   }
-  if (!found && !options.all) {
-    return 0;
-  }
   return value;
 }
-function convertObjectDataToArray(data, meta) {
-  const { iScale, vScale } = meta;
-  const iAxisKey = iScale.axis === "x" ? "x" : "y";
-  const vAxisKey = vScale.axis === "x" ? "x" : "y";
+function convertObjectDataToArray(data) {
   const keys = Object.keys(data);
   const adata = new Array(keys.length);
   let i, ilen, key;
   for (i = 0, ilen = keys.length; i < ilen; ++i) {
     key = keys[i];
     adata[i] = {
-      [iAxisKey]: key,
-      [vAxisKey]: data[key]
+      x: key,
+      y: data[key]
     };
   }
   return adata;
@@ -3624,8 +3568,7 @@ var DatasetController = class {
     const data = dataset.data || (dataset.data = []);
     const _data = this._data;
     if (isObject(data)) {
-      const meta = this._cachedMeta;
-      this._data = convertObjectDataToArray(data, meta);
+      this._data = convertObjectDataToArray(data);
     } else if (_data !== data) {
       if (_data) {
         unlistenArrayEvents(_data, this);
@@ -3662,7 +3605,6 @@ var DatasetController = class {
     this._resyncElements(resetNewElements);
     if (stackChanged || oldStacked !== meta._stacked) {
       updateStacks(this, meta._parsed);
-      meta._stacked = isStacked(meta.vScale, meta);
     }
   }
   configure() {
@@ -4458,10 +4400,8 @@ var BarController = class extends DatasetController {
     const metasets = iScale.getMatchingVisibleMetas(this._type).filter((meta) => meta.controller.options.grouped);
     const stacked = iScale.options.stacked;
     const stacks = [];
-    const currentParsed = this._cachedMeta.controller.getParsed(dataIndex);
-    const iScaleValue = currentParsed && currentParsed[iScale.axis];
     const skipNull = (meta) => {
-      const parsed = meta._parsed.find((item) => item[iScale.axis] === iScaleValue);
+      const parsed = meta.controller.getParsed(dataIndex);
       const val = parsed && parsed[meta.vScale.axis];
       if (isNullOrUndef(val) || isNaN(val)) {
         return true;
@@ -4485,22 +4425,6 @@ var BarController = class extends DatasetController {
   }
   _getStackCount(index2) {
     return this._getStacks(void 0, index2).length;
-  }
-  _getAxisCount() {
-    return this._getAxis().length;
-  }
-  getFirstScaleIdForIndexAxis() {
-    const scales2 = this.chart.scales;
-    const indexScaleId = this.chart.options.indexAxis;
-    return Object.keys(scales2).filter((key) => scales2[key].axis === indexScaleId).shift();
-  }
-  _getAxis() {
-    const axis = {};
-    const firstScaleAxisId = this.getFirstScaleIdForIndexAxis();
-    for (const dataset of this.chart.data.datasets) {
-      axis[valueOrDefault(this.chart.options.indexAxis === "x" ? dataset.xAxisID : dataset.yAxisID, firstScaleAxisId)] = true;
-    }
-    return Object.keys(axis);
   }
   _getStackIndex(datasetIndex, name, dataIndex) {
     const stacks = this._getStacks(datasetIndex, dataIndex);
@@ -4592,13 +4516,10 @@ var BarController = class extends DatasetController {
     const skipNull = options.skipNull;
     const maxBarThickness = valueOrDefault(options.maxBarThickness, Infinity);
     let center, size;
-    const axisCount = this._getAxisCount();
     if (ruler.grouped) {
       const stackCount = skipNull ? this._getStackCount(index2) : ruler.stackCount;
-      const range = options.barThickness === "flex" ? computeFlexCategoryTraits(index2, ruler, options, stackCount * axisCount) : computeFitCategoryTraits(index2, ruler, options, stackCount * axisCount);
-      const axisID = this.chart.options.indexAxis === "x" ? this.getDataset().xAxisID : this.getDataset().yAxisID;
-      const axisNumber = this._getAxis().indexOf(valueOrDefault(axisID, this.getFirstScaleIdForIndexAxis()));
-      const stackIndex = this._getStackIndex(this.index, this._cachedMeta.stack, skipNull ? index2 : void 0) + axisNumber;
+      const range = options.barThickness === "flex" ? computeFlexCategoryTraits(index2, ruler, options, stackCount) : computeFitCategoryTraits(index2, ruler, options, stackCount);
+      const stackIndex = this._getStackIndex(this.index, this._cachedMeta.stack, skipNull ? index2 : void 0);
       center = range.start + range.chunk * stackIndex + range.chunk / 2;
       size = Math.min(maxBarThickness, range.chunk * range.ratio);
     } else {
@@ -4619,7 +4540,7 @@ var BarController = class extends DatasetController {
     const ilen = rects.length;
     let i = 0;
     for (; i < ilen; ++i) {
-      if (this.getParsed(i)[vScale.axis] !== null && !rects[i].hidden) {
+      if (this.getParsed(i)[vScale.axis] !== null) {
         rects[i].draw(this._ctx);
       }
     }
@@ -5599,20 +5520,10 @@ var adapters = {
 function binarySearch(metaset, axis, value, intersect) {
   const { controller, data, _sorted } = metaset;
   const iScale = controller._cachedMeta.iScale;
-  const spanGaps = metaset.dataset ? metaset.dataset.options ? metaset.dataset.options.spanGaps : null : null;
   if (iScale && axis === iScale.axis && axis !== "r" && _sorted && data.length) {
     const lookupMethod = iScale._reversePixels ? _rlookupByKey : _lookupByKey;
     if (!intersect) {
-      const result = lookupMethod(data, axis, value);
-      if (spanGaps) {
-        const { vScale } = controller._cachedMeta;
-        const { _parsed } = metaset;
-        const distanceToDefinedLo = _parsed.slice(0, result.lo + 1).reverse().findIndex((point) => !isNullOrUndef(point[vScale.axis]));
-        result.lo -= Math.max(0, distanceToDefinedLo);
-        const distanceToDefinedHi = _parsed.slice(result.hi).findIndex((point) => !isNullOrUndef(point[vScale.axis]));
-        result.hi += Math.max(0, distanceToDefinedHi);
-      }
-      return result;
+      return lookupMethod(data, axis, value);
     } else if (controller._sharedOptions) {
       const el = data[0];
       const range = typeof el.getRange === "function" && el.getRange(axis);
@@ -5742,7 +5653,7 @@ function getAxisItems(chart, position, axis, intersect, useFinalPosition) {
   const rangeMethod = axis === "x" ? "inXRange" : "inYRange";
   let intersectsItem = false;
   evaluateInteractionItems(chart, axis, position, (element, datasetIndex, index2) => {
-    if (element[rangeMethod] && element[rangeMethod](position[axis], useFinalPosition)) {
+    if (element[rangeMethod](position[axis], useFinalPosition)) {
       items.push({
         element,
         datasetIndex,
@@ -6240,14 +6151,10 @@ var eventListenerOptions = supportsEventListenerOptions ? {
   passive: true
 } : false;
 function addListener(node, type, listener) {
-  if (node) {
-    node.addEventListener(type, listener, eventListenerOptions);
-  }
+  node.addEventListener(type, listener, eventListenerOptions);
 }
 function removeListener(chart, type, listener) {
-  if (chart && chart.canvas) {
-    chart.canvas.removeEventListener(type, listener, eventListenerOptions);
-  }
+  chart.canvas.removeEventListener(type, listener, eventListenerOptions);
 }
 function fromNativeEvent(event, chart) {
   const type = EVENT_TYPES[event.type] || event.type;
@@ -6440,7 +6347,7 @@ var DomPlatform = class extends BasePlatform {
     return getMaximumSize(canvas, width, height, aspectRatio);
   }
   isAttached(canvas) {
-    const container = canvas && _getParentNode(canvas);
+    const container = _getParentNode(canvas);
     return !!(container && container.isConnected);
   }
 };
@@ -7505,13 +7412,6 @@ var Scale = class _Scale extends Element {
           case "right":
             left -= width;
             break;
-          case "inner":
-            if (i === ilen - 1) {
-              left -= width;
-            } else if (i > 0) {
-              left -= width / 2;
-            }
-            break;
         }
         backdrop = {
           left,
@@ -8479,7 +8379,7 @@ function getResolver(resolverCache, scopes, prefixes) {
   }
   return cached;
 }
-var hasFunction = (value) => isObject(value) && Object.getOwnPropertyNames(value).some((key) => isFunction(value[key]));
+var hasFunction = (value) => isObject(value) && Object.getOwnPropertyNames(value).reduce((acc, key) => acc || isFunction(value[key]), false);
 function needContext(proxy, names2) {
   const { isScriptable, isIndexable } = _descriptors(proxy);
   for (const prop of names2) {
@@ -8492,7 +8392,7 @@ function needContext(proxy, names2) {
   }
   return false;
 }
-var version = "4.5.0";
+var version = "4.3.3";
 var KNOWN_POSITIONS = [
   "top",
   "bottom",
@@ -8560,6 +8460,17 @@ function determineLastEvent(e, lastEvent, inChartArea, isClick) {
     return lastEvent;
   }
   return e;
+}
+function getDatasetArea(meta) {
+  const { xScale, yScale } = meta;
+  if (xScale && yScale) {
+    return {
+      left: xScale.left,
+      right: xScale.right,
+      top: yScale.top,
+      bottom: yScale.bottom
+    };
+  }
 }
 var Chart = class {
   static defaults = defaults;
@@ -9008,8 +8919,8 @@ var Chart = class {
     let i;
     if (this._resizeBeforeDraw) {
       const { width, height } = this._resizeBeforeDraw;
-      this._resizeBeforeDraw = null;
       this._resize(width, height);
+      this._resizeBeforeDraw = null;
     }
     this.clear();
     if (this.width <= 0 || this.height <= 0) {
@@ -9059,20 +8970,27 @@ var Chart = class {
   }
   _drawDataset(meta) {
     const ctx = this.ctx;
+    const clip = meta._clip;
+    const useClip = !clip.disabled;
+    const area = getDatasetArea(meta) || this.chartArea;
     const args = {
       meta,
       index: meta.index,
       cancelable: true
     };
-    const clip = getDatasetClipArea(this, meta);
     if (this.notifyPlugins("beforeDatasetDraw", args) === false) {
       return;
     }
-    if (clip) {
-      clipArea(ctx, clip);
+    if (useClip) {
+      clipArea(ctx, {
+        left: clip.left === false ? 0 : area.left - clip.left,
+        right: clip.right === false ? this.width : area.right + clip.right,
+        top: clip.top === false ? 0 : area.top - clip.top,
+        bottom: clip.bottom === false ? this.height : area.bottom + clip.bottom
+      });
     }
     meta.controller.draw();
-    if (clip) {
+    if (useClip) {
       unclipArea(ctx);
     }
     args.cancelable = false;
@@ -9384,34 +9302,6 @@ var Chart = class {
 function invalidatePlugins() {
   return each(Chart.instances, (chart) => chart._plugins.invalidate());
 }
-function clipSelf(ctx, element, endAngle) {
-  const { startAngle, x, y, outerRadius, innerRadius, options } = element;
-  const { borderWidth, borderJoinStyle } = options;
-  const outerAngleClip = Math.min(borderWidth / outerRadius, _normalizeAngle(startAngle - endAngle));
-  ctx.beginPath();
-  ctx.arc(x, y, outerRadius - borderWidth / 2, startAngle + outerAngleClip / 2, endAngle - outerAngleClip / 2);
-  if (innerRadius > 0) {
-    const innerAngleClip = Math.min(borderWidth / innerRadius, _normalizeAngle(startAngle - endAngle));
-    ctx.arc(x, y, innerRadius + borderWidth / 2, endAngle - innerAngleClip / 2, startAngle + innerAngleClip / 2, true);
-  } else {
-    const clipWidth = Math.min(borderWidth / 2, outerRadius * _normalizeAngle(startAngle - endAngle));
-    if (borderJoinStyle === "round") {
-      ctx.arc(x, y, clipWidth, endAngle - PI / 2, startAngle + PI / 2, true);
-    } else if (borderJoinStyle === "bevel") {
-      const r = 2 * clipWidth * clipWidth;
-      const endX = -r * Math.cos(endAngle + PI / 2) + x;
-      const endY = -r * Math.sin(endAngle + PI / 2) + y;
-      const startX = r * Math.cos(startAngle + PI / 2) + x;
-      const startY = r * Math.sin(startAngle + PI / 2) + y;
-      ctx.lineTo(endX, endY);
-      ctx.lineTo(startX, startY);
-    }
-  }
-  ctx.closePath();
-  ctx.moveTo(0, 0);
-  ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.clip("evenodd");
-}
 function clipArc(ctx, element, endAngle) {
   const { startAngle, pixelMargin, x, y, outerRadius, innerRadius } = element;
   let angleMargin = pixelMargin / outerRadius;
@@ -9538,7 +9428,7 @@ function drawArc(ctx, element, offset, spacing, circular) {
 }
 function drawBorder(ctx, element, offset, spacing, circular) {
   const { fullCircles, startAngle, circumference, options } = element;
-  const { borderWidth, borderJoinStyle, borderDash, borderDashOffset, borderRadius } = options;
+  const { borderWidth, borderJoinStyle, borderDash, borderDashOffset } = options;
   const inner = options.borderAlign === "inner";
   if (!borderWidth) {
     return;
@@ -9565,9 +9455,6 @@ function drawBorder(ctx, element, offset, spacing, circular) {
   if (inner) {
     clipArc(ctx, element, endAngle);
   }
-  if (options.selfJoin && endAngle - startAngle >= PI && borderRadius === 0 && borderJoinStyle !== "miter") {
-    clipSelf(ctx, element, endAngle);
-  }
   if (!fullCircles) {
     pathArc(ctx, element, offset, spacing, endAngle, circular);
     ctx.stroke();
@@ -9586,8 +9473,7 @@ var ArcElement = class extends Element {
     offset: 0,
     spacing: 0,
     angle: void 0,
-    circular: true,
-    selfJoin: false
+    circular: true
   };
   static defaultRoutes = {
     backgroundColor: "backgroundColor"
@@ -9635,8 +9521,7 @@ var ArcElement = class extends Element {
     ], useFinalPosition);
     const rAdjust = (this.options.spacing + this.options.borderWidth) / 2;
     const _circumference = valueOrDefault(circumference, endAngle - startAngle);
-    const nonZeroBetween = _angleBetween(angle, startAngle, endAngle) && startAngle !== endAngle;
-    const betweenAngles = _circumference >= TAU || nonZeroBetween;
+    const betweenAngles = _circumference >= TAU || _angleBetween(angle, startAngle, endAngle);
     const withinRadius = _isBetween(distance, innerRadius + rAdjust, outerRadius + rAdjust);
     return betweenAngles && withinRadius;
   }
@@ -10298,9 +10183,6 @@ function containsColorsDefinitions(descriptors2) {
 function containsColorsDefinition(descriptor) {
   return descriptor && (descriptor.borderColor || descriptor.backgroundColor);
 }
-function containsDefaultColorsDefenitions() {
-  return defaults.borderColor !== "rgba(0,0,0,0.1)" || defaults.backgroundColor !== "rgba(0,0,0,0.1)";
-}
 var plugin_colors = {
   id: "colors",
   defaults: {
@@ -10313,8 +10195,7 @@ var plugin_colors = {
     }
     const { data: { datasets }, options: chartOptions } = chart.config;
     const { elements: elements2 } = chartOptions;
-    const containsColorDefenition = containsColorsDefinitions(datasets) || containsColorsDefinition(chartOptions) || elements2 && containsColorsDefinitions(elements2) || containsDefaultColorsDefenitions();
-    if (!options.forceOverride && containsColorDefenition) {
+    if (!options.forceOverride && (containsColorsDefinitions(datasets) || containsColorsDefinition(chartOptions) || elements2 && containsColorsDefinitions(elements2))) {
       return;
     }
     const colorizer = getColorizer(chart);
@@ -10903,13 +10784,11 @@ function computeCircularBoundary(source) {
 }
 function _drawfill(ctx, source, area) {
   const target = _getTarget(source);
-  const { chart, index: index2, line, scale, axis } = source;
+  const { line, scale, axis } = source;
   const lineOpts = line.options;
   const fillOption = lineOpts.fill;
   const color2 = lineOpts.backgroundColor;
   const { above = color2, below = color2 } = fillOption || {};
-  const meta = chart.getDatasetMeta(index2);
-  const clip = getDatasetClipArea(chart, meta);
   if (target && line.points.length) {
     clipArea(ctx, area);
     doFill(ctx, {
@@ -10919,54 +10798,34 @@ function _drawfill(ctx, source, area) {
       below,
       area,
       scale,
-      axis,
-      clip
+      axis
     });
     unclipArea(ctx);
   }
 }
 function doFill(ctx, cfg) {
-  const { line, target, above, below, area, scale, clip } = cfg;
+  const { line, target, above, below, area, scale } = cfg;
   const property = line._loop ? "angle" : cfg.axis;
   ctx.save();
-  let fillColor = below;
-  if (below !== above) {
-    if (property === "x") {
-      clipVertical(ctx, target, area.top);
-      fill(ctx, {
-        line,
-        target,
-        color: above,
-        scale,
-        property,
-        clip
-      });
-      ctx.restore();
-      ctx.save();
-      clipVertical(ctx, target, area.bottom);
-    } else if (property === "y") {
-      clipHorizontal(ctx, target, area.left);
-      fill(ctx, {
-        line,
-        target,
-        color: below,
-        scale,
-        property,
-        clip
-      });
-      ctx.restore();
-      ctx.save();
-      clipHorizontal(ctx, target, area.right);
-      fillColor = above;
-    }
+  if (property === "x" && below !== above) {
+    clipVertical(ctx, target, area.top);
+    fill(ctx, {
+      line,
+      target,
+      color: above,
+      scale,
+      property
+    });
+    ctx.restore();
+    ctx.save();
+    clipVertical(ctx, target, area.bottom);
   }
   fill(ctx, {
     line,
     target,
-    color: fillColor,
+    color: below,
     scale,
-    property,
-    clip
+    property
   });
   ctx.restore();
 }
@@ -10999,44 +10858,15 @@ function clipVertical(ctx, target, clipY) {
   ctx.closePath();
   ctx.clip();
 }
-function clipHorizontal(ctx, target, clipX) {
-  const { segments, points } = target;
-  let first = true;
-  let lineLoop = false;
-  ctx.beginPath();
-  for (const segment of segments) {
-    const { start, end } = segment;
-    const firstPoint = points[start];
-    const lastPoint = points[_findSegmentEnd(start, end, points)];
-    if (first) {
-      ctx.moveTo(firstPoint.x, firstPoint.y);
-      first = false;
-    } else {
-      ctx.lineTo(clipX, firstPoint.y);
-      ctx.lineTo(firstPoint.x, firstPoint.y);
-    }
-    lineLoop = !!target.pathSegment(ctx, segment, {
-      move: lineLoop
-    });
-    if (lineLoop) {
-      ctx.closePath();
-    } else {
-      ctx.lineTo(clipX, lastPoint.y);
-    }
-  }
-  ctx.lineTo(clipX, target.first().y);
-  ctx.closePath();
-  ctx.clip();
-}
 function fill(ctx, cfg) {
-  const { line, target, property, color: color2, scale, clip } = cfg;
+  const { line, target, property, color: color2, scale } = cfg;
   const segments = _segments(line, target, property);
   for (const { source: src, target: tgt, start, end } of segments) {
     const { style: { backgroundColor = color2 } = {} } = src;
     const notShape = target !== true;
     ctx.save();
     ctx.fillStyle = backgroundColor;
-    clipBounds(ctx, scale, clip, notShape && _getBounds(property, start, end));
+    clipBounds(ctx, scale, notShape && _getBounds(property, start, end));
     ctx.beginPath();
     const lineLoop = !!line.pathSegment(ctx, src);
     let loop;
@@ -11060,30 +10890,12 @@ function fill(ctx, cfg) {
     ctx.restore();
   }
 }
-function clipBounds(ctx, scale, clip, bounds) {
-  const chartArea = scale.chart.chartArea;
+function clipBounds(ctx, scale, bounds) {
+  const { top, bottom } = scale.chart.chartArea;
   const { property, start, end } = bounds || {};
-  if (property === "x" || property === "y") {
-    let left, top, right, bottom;
-    if (property === "x") {
-      left = start;
-      top = chartArea.top;
-      right = end;
-      bottom = chartArea.bottom;
-    } else {
-      left = chartArea.left;
-      top = start;
-      right = chartArea.right;
-      bottom = end;
-    }
+  if (property === "x") {
     ctx.beginPath();
-    if (clip) {
-      left = Math.max(left, clip.left);
-      right = Math.min(right, clip.right);
-      top = Math.max(top, clip.top);
-      bottom = Math.min(bottom, clip.bottom);
-    }
-    ctx.rect(left, top, right - left, bottom - top);
+    ctx.rect(start, top, end - start, bottom - top);
     ctx.clip();
   }
 }
@@ -11899,26 +11711,20 @@ var positioners = {
       return false;
     }
     let i, len;
-    let xSet = /* @__PURE__ */ new Set();
+    let x = 0;
     let y = 0;
     let count = 0;
     for (i = 0, len = items.length; i < len; ++i) {
       const el = items[i].element;
       if (el && el.hasValue()) {
         const pos = el.tooltipPosition();
-        xSet.add(pos.x);
+        x += pos.x;
         y += pos.y;
         ++count;
       }
     }
-    if (count === 0 || xSet.size === 0) {
-      return false;
-    }
-    const xAverage = [
-      ...xSet
-    ].reduce((a, b) => a + b) / xSet.size;
     return {
-      x: xAverage,
+      x: x / count,
       y: y / count
     };
   },
@@ -12734,7 +12540,7 @@ var Tooltip = class extends Element {
       return [];
     }
     if (!inChartArea) {
-      return lastActive.filter((i) => this.chart.data.datasets[i.datasetIndex] && this.chart.getDatasetMeta(i.datasetIndex).controller.getParsed(i.index) !== void 0);
+      return lastActive;
     }
     const active = this.chart.getElementsAtEventForMode(e, options.mode, options, replay);
     if (options.reverse) {
@@ -13659,7 +13465,7 @@ function drawRadiusLine(scale, gridLineOpts, radius, labelCount, borderOpts) {
   ctx.save();
   ctx.strokeStyle = color2;
   ctx.lineWidth = lineWidth;
-  ctx.setLineDash(borderOpts.dash || []);
+  ctx.setLineDash(borderOpts.dash);
   ctx.lineDashOffset = borderOpts.dashOffset;
   ctx.beginPath();
   pathRadiusLine(scale, radius, circular, labelCount);
@@ -13842,7 +13648,7 @@ var RadialLinearScale = class extends LinearScaleBase {
     }
     if (grid.display) {
       this.ticks.forEach((tick, index2) => {
-        if (index2 !== 0 || index2 === 0 && this.min < 0) {
+        if (index2 !== 0) {
           offset = this.getDistanceFromCenterForValue(tick.value);
           const context = this.getContext(index2);
           const optsAtIndex = grid.setContext(context);
@@ -13863,7 +13669,7 @@ var RadialLinearScale = class extends LinearScaleBase {
         ctx.strokeStyle = color2;
         ctx.setLineDash(optsAtIndex.borderDash);
         ctx.lineDashOffset = optsAtIndex.borderDashOffset;
-        offset = this.getDistanceFromCenterForValue(opts.reverse ? this.min : this.max);
+        offset = this.getDistanceFromCenterForValue(opts.ticks.reverse ? this.min : this.max);
         position = this.getPointPosition(i, offset);
         ctx.beginPath();
         ctx.moveTo(this.xCenter, this.yCenter);
@@ -13890,7 +13696,7 @@ var RadialLinearScale = class extends LinearScaleBase {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     this.ticks.forEach((tick, index2) => {
-      if (index2 === 0 && this.min >= 0 && !opts.reverse) {
+      if (index2 === 0 && !opts.reverse) {
         return;
       }
       const optsAtIndex = tickOpts.setContext(this.getContext(index2));
@@ -14461,8 +14267,11 @@ var registerables = [
 ];
 
 export {
+  isObject,
   Ticks,
   defaults,
+  addRoundedRectPath,
+  toTRBLCorners,
   animator,
   Animation,
   Animations,
@@ -14519,13 +14328,13 @@ export {
    * Released under the MIT License
    *)
 
-chart.js/dist/chunks/helpers.dataset.js:
+chart.js/dist/chunks/helpers.segment.js:
 chart.js/dist/chart.js:
   (*!
-   * Chart.js v4.5.0
+   * Chart.js v4.3.3
    * https://www.chartjs.org
-   * (c) 2025 Chart.js Contributors
+   * (c) 2023 Chart.js Contributors
    * Released under the MIT License
    *)
 */
-//# sourceMappingURL=chunk-YEJGN64Y.js.map
+//# sourceMappingURL=chunk-UFQ5AXFK.js.map

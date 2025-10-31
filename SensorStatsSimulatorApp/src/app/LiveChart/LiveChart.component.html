@@ -1,4 +1,15 @@
-<div>Chart 123</div>
-<div class="chart-wrapper">
-  <canvas #canvas></canvas>
+<div class="live-chart-root" style="width: 95vw !important; height: 95vh !important;" >
+  <div class="heatmap-container">
+    <canvas #heatmapCanvas style="width: 90vw; height: 90vh; display: block;"></canvas>
+  </div>
+
+  <div class="detail-panel" *ngIf="selectedSensorId">
+    <div class="detail-header">
+      <h3>{{ selectedSensorId }}</h3>
+      <button (click)="closeDetail()">Close</button>
+    </div>
+    <div class="detail-chart">
+      <canvas #detailCanvas></canvas>
+    </div>
+  </div>
 </div>

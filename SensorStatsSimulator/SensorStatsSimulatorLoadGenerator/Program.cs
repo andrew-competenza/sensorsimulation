@@ -12,7 +12,7 @@ var rng = new Random();
 
 var _randomDelay = new Random();
 
-int sensorCount = 1000; // tune
+int sensorCount = 5000; // tune
 var tasks = new List<Task>();
 
 
@@ -43,7 +43,7 @@ for (int i = 0; i < sensorCount; i++)
 
 await Task.WhenAll(tasks);
 
-//help to simulate post of data with 100ms to 1200ms interval
+//hel to simulate post of data with 100ms to 1200ms interval
 async Task DelayRandomAsync(int minMs = 100, int maxMs = 1200)
 {
     int delay = _randomDelay.Next(minMs, maxMs + 1); // inclusive upper bound
