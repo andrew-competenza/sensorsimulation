@@ -1,5 +1,6 @@
+<div> <div><Span>Current Total Sensors data showing: {{this.currentSensorsData}}</Span></div>
 <div class="live-chart-root" style="width: 95vw !important; height: 95vh !important;" >
-  <div class="heatmap-container">
+   <div class="heatmap-container" style="overflow: auto !important; border: 1px solid #ccc;">
     <canvas #heatmapCanvas style="width: 90vw; height: 90vh; display: block;"></canvas>
   </div>
 
@@ -12,4 +13,5 @@
       <canvas #detailCanvas></canvas>
     </div>
   </div>
+</div>
 </div>

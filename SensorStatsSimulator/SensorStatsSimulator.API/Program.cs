@@ -4,8 +4,15 @@ using System.Text.Json.Serialization.Metadata;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
+
+builder.WebHost.ConfigureKestrel(o =>
+{
+    o.Limits.MaxConcurrentConnections = 50000;
+    o.Limits.MaxConcurrentUpgradedConnections = 80000;
+});
+
 // Services registration
-builder.Services.AddSingleton(_ => new InMemorySensorStore(bufferSize: 300000)); // keep last 300 samples
+builder.Services.AddSingleton(_ => new InMemorySensorStore(bufferSize: 3000000)); // keep last 300 samples
 builder.Services.AddSignalR();
 
 builder.Services.AddControllers()

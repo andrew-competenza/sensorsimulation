@@ -44,11 +44,12 @@ private heatmapChart?: Chart<any, any, any>;
   gridRows = 100;
   maxHistoryPoints = 500; // per-sensor history for detail view
   redrawThrottleMs = 150; // throttle heatmap updates to e.g. every 150ms
-  maxSensors = 500;
+  maxSensors = 10000;
   // small internal timer for throttling updates
   private pendingHeatmapUpdate = false;
   private lastHeatmapUpdate = 0;
 
+  currentSensorsData = 0;
   // Snapshot URL - adjust to your API
   private snapshotUrl = 'http://localhost:5103/api/sensors/snapshot';
 
@@ -74,14 +75,6 @@ private heatmapChart?: Chart<any, any, any>;
     const canvas = this.heatmapCanvas.nativeElement;
   
    const ctx = canvas.getContext('2d')!;
-    debugger;
-
-    let width = canvas.width;
-   let height = canvas.height;
-
-    console.log(`Canvas size Before: ${width}x${height}`);
-
-
 
  // Get browser window size (not canvas CSS size)
   const displayWidth = window.innerWidth * 0.9;   // 90vw
@@ -91,13 +84,7 @@ private heatmapChart?: Chart<any, any, any>;
   canvas.width = displayWidth;
   canvas.height = displayHeight;
 
-  console.log(`Canvas resized to: ${canvas.width} x ${canvas.height}`);
-
-
-   width = canvas.width;
-   height = canvas.height;
-
-  console.log(`Canvas size After: ${width}x${height}`);
+   console.log(`Canvas size After: ${displayWidth}x${displayHeight}`);
 
 
 // Ideal grid as close to a square as possible
@@ -105,11 +92,6 @@ const cols = Math.ceil(Math.sqrt(this.maxSensors));
 const rows = Math.ceil(this.maxSensors / cols);
 
 console.log(`Grid: ${rows} rows x ${cols} cols`);
-
- const cellWidth = width / cols;
- const cellHeight = height / rows;   
-
-console.log(`Grid Cell: ${cellWidth} cellWidth x ${cellHeight} cellHeight`);
    
 const cellSize = 10;//Math.max(4, Math.floor(800 / this.gridCols)); // adapt size
 
@@ -265,6 +247,8 @@ const cellSize = 10;//Math.max(4, Math.floor(800 / this.gridCols)); // adapt siz
     }));
 
     (this.heatmapChart.data.datasets![0].data as any) = cells;
+
+    this.currentSensorsData = cells.length;
     // update without animation and minimal work
     this.heatmapChart.update('none');
   }

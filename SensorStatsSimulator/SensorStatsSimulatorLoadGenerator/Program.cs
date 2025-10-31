@@ -5,14 +5,28 @@ using System.Text;
 using System.Text.Json;
 
 
-var http = new HttpClient();
+
+
+var handler = new SocketsHttpHandler
+{
+    PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+    MaxConnectionsPerServer = 200,  // <= match your concurrency
+    ConnectTimeout = TimeSpan.FromSeconds(300),
+};
+
+
+var http = new HttpClient(handler);
 var baseUrl = "http://localhost:5103/api/sensors"; // adjust port
 var rng = new Random();
 
 
 var _randomDelay = new Random();
 
-int sensorCount = 5000; // tune
+int sensorCount = 15000; // tune
+int maxConcurrent = 200;
+
+
+var semaphore = new SemaphoreSlim(maxConcurrent); // limit concurrency
 var tasks = new List<Task>();
 
 
@@ -25,15 +39,29 @@ for (int i = 0; i < sensorCount; i++)
         Console.WriteLine($"for sensor -> {id}");
         while (true)
         {
-            var sample = new { sensorId = id, timestamp = DateTimeOffset.Now, value = Math.Round(rng.NextDouble() * 100, 2) };
-            var json = JsonSerializer.Serialize(sample);
+            await semaphore.WaitAsync(); // acquire slot
             try
             {
-                var response = await http.PostAsync(baseUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+
+                var sample = new { sensorId = id, timestamp = DateTimeOffset.Now, value = Math.Round(rng.NextDouble() * 100, 2) };
+                var json = JsonSerializer.Serialize(sample);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                try
+                {
+                    var response = await http.PostAsync(baseUrl, content);
+                    
+                    if (!response.IsSuccessStatusCode)
+                        Console.WriteLine($"[{id}] Server responded: {response.StatusCode}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[{id}] Error: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                Console.WriteLine(ex.Message);
+                semaphore.Release(); // release slot
             }
             await DelayRandomAsync(); // 1 per second per sensor -> heavy; increase delay for local testing
         }
@@ -44,7 +72,7 @@ for (int i = 0; i < sensorCount; i++)
 await Task.WhenAll(tasks);
 
 //hel to simulate post of data with 100ms to 1200ms interval
-async Task DelayRandomAsync(int minMs = 100, int maxMs = 1200)
+async Task DelayRandomAsync(int minMs = 2500, int maxMs = 6500)
 {
     int delay = _randomDelay.Next(minMs, maxMs + 1); // inclusive upper bound
     await Task.Delay(delay);
